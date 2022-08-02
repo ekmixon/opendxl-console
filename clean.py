@@ -7,19 +7,20 @@ from shutil import copyfile
 
 
 def clean_dir(src_dir, directory):
-    if os.path.exists(directory):
-        print("Cleaning directory: " + directory + "\n")
-        for f in os.listdir(directory):
-            target_file = os.path.join(directory, f)
-            if not os.path.isdir(target_file) \
-                    and not f.lower().endswith(".py"):
-                os.remove(os.path.join(directory, f))
-        for f in os.listdir(src_dir):
-            src_file = os.path.join(src_dir, f)
-            if not os.path.isdir(src_file) and \
-                    not f.lower().endswith(".py") and \
-                    not f.lower().endswith(".pyc"):
-                copyfile(os.path.join(src_dir, f), os.path.join(directory, f))
+    if not os.path.exists(directory):
+        return
+    print(f"Cleaning directory: {directory}" + "\n")
+    for f in os.listdir(directory):
+        target_file = os.path.join(directory, f)
+        if not os.path.isdir(target_file) \
+                and not f.lower().endswith(".py"):
+            os.remove(os.path.join(directory, f))
+    for f in os.listdir(src_dir):
+        src_file = os.path.join(src_dir, f)
+        if not os.path.isdir(src_file) and \
+                not f.lower().endswith(".py") and \
+                not f.lower().endswith(".pyc"):
+            copyfile(os.path.join(src_dir, f), os.path.join(directory, f))
 
 print("Starting clean.\n")
 
@@ -34,7 +35,7 @@ SAMPLE_SRC_DIRECTORY = os.path.join(DIST_PY_FILE_LOCATION, "dxlconsole",
 
 # Remove the dist directory if it exists
 if os.path.exists(DIST_DIRECTORY):
-    print("Removing dist directory: " + DIST_DIRECTORY + "\n")
+    print(f"Removing dist directory: {DIST_DIRECTORY}" + "\n")
     remove_tree(DIST_DIRECTORY, verbose=1)
 
 # Clean the config directory

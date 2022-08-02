@@ -64,11 +64,7 @@ else:
     logger.addHandler(console_handler)
     logger.setLevel(logging.INFO)
 
-# Determine the unique identifier (if applicable)
-UNIQUE_ID = None
-if len(sys.argv) >= 3:
-    UNIQUE_ID = sys.argv[2]
-
+UNIQUE_ID = sys.argv[2] if len(sys.argv) >= 3 else None
 # Create the application
 with OpenDxlConsole(sys.argv[1], UNIQUE_ID) as app:
     try:

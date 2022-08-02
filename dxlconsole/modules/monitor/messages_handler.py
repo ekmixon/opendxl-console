@@ -65,27 +65,30 @@ class MessagesHandler(BaseRequestHandler):
 
         response = response_wrapper["response"]
 
-        messages = self._module.get_messages(client_id)
-
-        if messages:
+        if messages := self._module.get_messages(client_id):
             for message in messages:
                 # If we have a topic stored as a response for this message ID
                 # use it instead of the response topic
                 topic = self._module.get_message_topic(message)
                 if message.message_type == Message.MESSAGE_TYPE_ERROR:
-                    payload = self.escape(message.error_message + " (" + str(
-                        message.error_code) + ")")
+                    payload = self.escape(
+                        (
+                            f"{message.error_message} ({str(message.error_code)}"
+                            + ")"
+                        )
+                    )
+
                     original_payload = payload
                 else:
                     decoded_payload = MessageUtils.decode_payload(message)
                     original_payload = decoded_payload
                     try:
                         payload = "<pre><code>" + \
-                                  self.escape(
+                                      self.escape(
                                       MessageUtils.dict_to_json(
                                           MessageUtils.json_payload_to_dict(
                                               message), True)) \
-                                  + "</pre></code>"
+                                      + "</pre></code>"
                     except Exception:
                         try:
                             xml_payload = BeautifulSoup(original_payload,
@@ -97,18 +100,15 @@ class MessagesHandler(BaseRequestHandler):
                             logger.exception(ex)
                             payload = original_payload
                     if len(payload) > self._MAX_DETAILS_PAYLOAD_LENGTH:
-                        payload = payload[0:self._MAX_DETAILS_PAYLOAD_LENGTH] + \
-                                  " ..."
+                        payload = (payload[:self._MAX_DETAILS_PAYLOAD_LENGTH] + " ...")
                     if len(payload) > self._MAX_TABLE_PAYLOAD_LENGTH:
-                        original_payload = \
-                            original_payload[0:self._MAX_TABLE_PAYLOAD_LENGTH] + \
-                            " ..."
+                        original_payload = (original_payload[:self._MAX_TABLE_PAYLOAD_LENGTH] + " ...")
 
                 message_type = "Event" if message.message_type == Message.MESSAGE_TYPE_EVENT \
-                    else "Response" if message.message_type == Message.MESSAGE_TYPE_RESPONSE \
-                    else "Request" if message.message_type == Message.MESSAGE_TYPE_REQUEST \
-                    else "Error Response" if message.message_type == Message.MESSAGE_TYPE_ERROR \
-                    else "Unknown"
+                        else "Response" if message.message_type == Message.MESSAGE_TYPE_RESPONSE \
+                        else "Request" if message.message_type == Message.MESSAGE_TYPE_REQUEST \
+                        else "Error Response" if message.message_type == Message.MESSAGE_TYPE_ERROR \
+                        else "Unknown"
 
                 message_entry = {
                     'topic': topic,

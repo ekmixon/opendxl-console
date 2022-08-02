@@ -4,13 +4,17 @@ This includes the defining the path to the configuration file used to initialize
 in addition to setting up the logger appropriately.
 """
 
+
 from __future__ import absolute_import
 import os
 import logging
 
 # Config file name.
 CONFIG_FILE_NAME = "dxlclient.config"
-CONFIG_FILE = os.path.dirname(os.path.abspath(__file__)) + "/" + CONFIG_FILE_NAME
+CONFIG_FILE = (
+    f"{os.path.dirname(os.path.abspath(__file__))}/{CONFIG_FILE_NAME}"
+)
+
 
 # Enable logging, this will also direct built-in DXL log messages.
 # See - https://docs.python.org/2/howto/logging-cookbook.html

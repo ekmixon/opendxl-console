@@ -52,7 +52,7 @@ class OpenDxlConsole(Application):
 
         :return: The cookie name to use for the user
         """
-        return self._unique_id + "_user" if self._unique_id else "user"
+        return f"{self._unique_id}_user" if self._unique_id else "user"
 
     @property
     def console_name(self):

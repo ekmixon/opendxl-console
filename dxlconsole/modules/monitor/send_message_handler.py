@@ -50,8 +50,15 @@ class SendMessageHandler(BaseRequestHandler):
                 message_payload = ""
 
             logger.debug(
-                "Sending " + message_type + " on topic " + message_topic +
-                " with payload: " + message_payload)
+                (
+                    (
+                        f"Sending {message_type} on topic {message_topic}"
+                        + " with payload: "
+                    )
+                    + message_payload
+                )
+            )
+
             message_id = None
             if message_type == 'Event':
                 event = Event(message_topic)
@@ -61,17 +68,19 @@ class SendMessageHandler(BaseRequestHandler):
             elif message_type == 'Request':
                 req = Request(message_topic)
                 req.payload = message_payload
-                if 'serviceId' in request_params:
-                    if request_params['serviceId'] is not None and \
-                            request_params['serviceId'] != "":
-                        req.service_id = request_params['serviceId']
+                if (
+                    'serviceId' in request_params
+                    and request_params['serviceId'] is not None
+                    and request_params['serviceId'] != ""
+                ):
+                    req.service_id = request_params['serviceId']
                 self._module.message_id_topics[req.message_id] = message_topic
                 client.async_request(req)
                 message_id = req.message_id
 
-            self.write("Message successfully sent.&nbsp;&nbsp;&nbsp;[ID : " + message_id + "]")
+            self.write(f"Message successfully sent.&nbsp;&nbsp;&nbsp;[ID : {message_id}]")
         except Exception as ex:
             logger.error("Exception while processing send message request. %s",
                          ex)
             logger.error(traceback.format_exc())
-            self.write("Failed to send message: " + str(ex))
+            self.write(f"Failed to send message: {str(ex)}")

@@ -291,9 +291,11 @@ class MonitorModule(Module):
         :param message: The DXL message
         :return:  The topic to use
         """
-        if (message.message_type == Message.MESSAGE_TYPE_RESPONSE or
-                message.message_type == Message.MESSAGE_TYPE_ERROR) and \
-                        message.request_message_id in self.message_id_topics:
+        if (
+            message.message_type
+            in [Message.MESSAGE_TYPE_RESPONSE, Message.MESSAGE_TYPE_ERROR]
+            and message.request_message_id in self.message_id_topics
+        ):
             topic = self.message_id_topics[message.request_message_id]
             del self.message_id_topics[message.request_message_id]
         else:

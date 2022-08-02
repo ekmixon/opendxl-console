@@ -86,11 +86,7 @@ class TopologyModule(Module):
         """
         req = Request(TopologyModule.BROKER_REGISTRY_QUERY_TOPIC)
 
-        if client_id:
-            req.payload = "{ \"brokerGuid\":\"" + client_id + "\"}"
-        else:
-            req.payload = "{}"
-
+        req.payload = "{ \"brokerGuid\":\"" + client_id + "\"}" if client_id else "{}"
         # Send the request
         dxl_response = self.app.dxl_service_client.sync_request(req, 5)
 
@@ -102,10 +98,10 @@ class TopologyModule(Module):
         dxl_response_dict = MessageUtils.json_payload_to_dict(dxl_response)
         logger.info("Broker registry response: %s", dxl_response_dict)
 
-        brokers = {}
-        for broker_guid in dxl_response_dict["brokers"]:
-            brokers[broker_guid] = dxl_response_dict["brokers"][
-                broker_guid]
+        brokers = {
+            broker_guid: dxl_response_dict["brokers"][broker_guid]
+            for broker_guid in dxl_response_dict["brokers"]
+        }
 
         self.current_connected_broker = dxl_response.source_broker_id
 
@@ -156,8 +152,7 @@ class BrokerRegistryQueryHandler(BaseRequestHandler):
 
         brokers = self._module.get_broker_registry(query_broker_id)
 
-        current_broker = query_broker_id if query_broker_id \
-            else self._module.current_connected_broker
+        current_broker = query_broker_id or self._module.current_connected_broker
 
         self._build_connected_broker_list(current_broker, brokers, response["data"])
 

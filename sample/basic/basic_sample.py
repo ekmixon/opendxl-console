@@ -8,7 +8,7 @@ from dxlclient.message import Message, Event, Request
 from dxlbootstrap.util import MessageUtils
 
 # Import common logging and configuration
-sys.path.append(os.path.dirname(os.path.abspath(__file__)) + "/..")
+sys.path.append(f"{os.path.dirname(os.path.abspath(__file__))}/..")
 from common import *
 
 # Configure local logger

@@ -53,10 +53,7 @@ class ConsoleStaticFileRequestHandler(StaticFileHandler):
         # the package resources. This allows us to specify specific paths via
         # root (favicon, etc.), and also use the incoming path to resolve
         # resources.
-        if root:
-            resource_path = '/'.join(("web", root))
-        else:
-            resource_path = '/'.join(("web", path))
+        resource_path = '/'.join(("web", root)) if root else '/'.join(("web", path))
         return pkg_resources.resource_filename(__name__, resource_path)
 
     def validate_absolute_path(self, root, absolute_path):
@@ -163,11 +160,13 @@ class LoginHandler(RequestHandler):
         if auth_header is not None:
             auth_decoded = base64.b64decode(auth_header[6:]).decode('utf8')
             username, password = auth_decoded.split(':', 2)
-            details = ""
-            for values in self.request.arguments.values():
-                details += ",".join([value.decode("utf8") for value in values])
+            details = "".join(
+                ",".join([value.decode("utf8") for value in values])
+                for values in self.request.arguments.values()
+            )
+
             if username == self.application.bootstrap_app.username and \
-                    password == self.application.bootstrap_app.password:
+                        password == self.application.bootstrap_app.password:
                 self.set_secure_cookie(self.application.bootstrap_app.user_cookie_name, username)
                 self.redirect(details)
             else:

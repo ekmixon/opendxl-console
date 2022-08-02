@@ -313,9 +313,7 @@ class _BaseCertHandler(BaseRequestHandler):
         """
         def replacer(match):
             match_string = match.group(0)
-            if match_string.startswith('/'):
-                return " "  # note: a space and not an empty string
-            return match_string
+            return " " if match_string.startswith('/') else match_string
 
         pattern = re.compile(
             r'//.*?$|/\*.*?\*/|\'(?:\\.|[^\\\'])*\'|"(?:\\.|[^\\"])*"',
@@ -365,11 +363,18 @@ class _BaseCertHandler(BaseRequestHandler):
         if not config_parser.has_section("BrokersWebSockets"):
             config_parser.add_section("BrokersWebSockets")
             config_parser.set("BrokersWebSockets", "local", "local;443;localhost;127.0.0.1")
-            config_parser.set("BrokersWebSockets", "external",
-                              "external;443;{};{}".format(server_host, server_addr))
-            config_parser.set("BrokersWebSockets", "docker",
-                              "docker;443;{};{}".format(docker_ip.decode("utf8"),
-                                                        docker_ip.decode("utf8")))
+            config_parser.set(
+                "BrokersWebSockets",
+                "external",
+                f"external;443;{server_host};{server_addr}",
+            )
+
+            config_parser.set(
+                "BrokersWebSockets",
+                "docker",
+                f'docker;443;{docker_ip.decode("utf8")};{docker_ip.decode("utf8")}',
+            )
+
 
         # Add other brokers from broker state file
         state_policy_file = self._module.broker_state_policy_file
@@ -432,7 +437,7 @@ class _BaseCertHandler(BaseRequestHandler):
         :param ca_password: Password used to unencrypt the CA private key file
         :raise Exception: Error running the openssl command to create the certificate
         """
-        password = 'pass:' + ca_password
+        password = f'pass:{ca_password}'
 
         # Sign the CSR with the client cert file
         return_code = subprocess.call(
@@ -511,24 +516,16 @@ class GenerateCertHandler(_BaseCertHandler):
         :return: subject string
         """
 
-        if 'cn' in request_params:
-            common_name = request_params['cn'].strip()
-            if common_name is None:
-                raise Exception("No common name specified")
-
-        else:
+        if 'cn' not in request_params:
             raise Exception("No common name specified")
 
-        # weird quirk of openssl. It wants email first if present
-        email = None
-        if 'email' in request_params:
-            email = request_params['email'].strip()
+        common_name = request_params['cn'].strip()
+        if common_name is None:
+            raise Exception("No common name specified")
 
-        subject = ''
-        if email is not None:
-            subject = "/emailAddress=" + email
-
-        subject += "/CN=" + common_name
+        email = request_params['email'].strip() if 'email' in request_params else None
+        subject = f"/emailAddress={email}" if email is not None else ''
+        subject += f"/CN={common_name}"
 
         # this has to be 2 chars
         country = None
@@ -541,32 +538,23 @@ class GenerateCertHandler(_BaseCertHandler):
         if country is not None and len(str(country)) != 2:
             raise Exception("Country Name has to be 2 characters")
 
-        state = None
-        if 'state' in request_params:
-            state = request_params['state'].strip()
-
+        state = request_params['state'].strip() if 'state' in request_params else None
         locality = None
         if 'locality' in request_params:
             locality = request_params['locality'].strip()
 
-        org = None
-        if 'org' in request_params:
-            org = request_params['org'].strip()
-
-        org_unit = None
-        if 'ou' in request_params:
-            org_unit = request_params['ou'].strip()
-
+        org = request_params['org'].strip() if 'org' in request_params else None
+        org_unit = request_params['ou'].strip() if 'ou' in request_params else None
         if country is not None:
-            subject += "/C=" + country
+            subject += f"/C={country}"
         if state is not None:
-            subject += "/ST=" + state
+            subject += f"/ST={state}"
         if locality is not None:
-            subject += "/L=" + locality
+            subject += f"/L={locality}"
         if org is not None:
-            subject += "/O=" + org
+            subject += f"/O={org}"
         if org_unit is not None:
-            subject += "/OU=" + org_unit
+            subject += f"/OU={org_unit}"
 
         return subject
 
@@ -667,8 +655,7 @@ class GenerateCertHandler(_BaseCertHandler):
                 ca_key_file = self._module.broker_ca_key_file
                 ca_password = self._module.broker_ca_password
             else:
-                raise Exception(
-                    "Unsupported configType: {}".format(config_type))
+                raise Exception(f"Unsupported configType: {config_type}")
 
             # generate the cert subject string
             subject = self._generate_subject_str_from_request(request_params)
@@ -696,7 +683,7 @@ class GenerateCertHandler(_BaseCertHandler):
                 "Exception while processing generate cert request. %s", ex)
             logger.error(traceback.format_exc())
             self.set_status(500)
-            self.write("Failed to generate certs:" + str(ex))
+            self.write(f"Failed to generate certs:{str(ex)}")
         finally:
             if temp_key_file is not None:
                 temp_key_file.close()
@@ -729,19 +716,20 @@ class ProvisionManagementServiceHandler(_BaseCertHandler):
 
         :return: comma delimited list of brokers
         """
-        content = []
         # read as a config
         config_parser = self._get_configparser()
-        # extract the broker list from the config
-        for name, value in config_parser.items("Brokers"):
-            content.append('{}={}\n'.format(name, value))
+        content = [
+            f'{name}={value}\n' for name, value in config_parser.items("Brokers")
+        ]
 
         content.append(",")
 
         # extract the WebSocket broker list from the config
         if config_parser.has_section("BrokersWebSockets"):
-            for name, value in config_parser.items("BrokersWebSockets"):
-                content.append('{}={}\n'.format(name, value))
+            content.extend(
+                f'{name}={value}\n'
+                for name, value in config_parser.items("BrokersWebSockets")
+            )
 
         return ''.join(content)
 
@@ -814,7 +802,7 @@ class ProvisionManagementServiceHandler(_BaseCertHandler):
             # These parts are delimited by ','
             response_str = ",".join((ca_content, cert_content, config_out))
             # mimicking the ePO response for output string = json. Needs to be OK:"body"
-            json_string = "OK:\r\n{}\r\n".format(json.dumps(response_str))
+            json_string = f"OK:\r\n{json.dumps(response_str)}\r\n"
 
             self.write(json_string)
 
@@ -822,8 +810,8 @@ class ProvisionManagementServiceHandler(_BaseCertHandler):
             logger.error(
                 "Exception while processing Provision config request. %s", ex)
             logger.error(traceback.format_exc())
-            error_string = "Failed to generate Provision config with the specified CSR:" + str(
-                ex)
+            error_string = f"Failed to generate Provision config with the specified CSR:{str(ex)}"
+
             # json_string = "ERROR:\r\n{}\r\n".format(json.dumps(error_string))
             # Raising exception again so the python client will show the error
             raise tornado.web.HTTPError(500, reason=error_string,
@@ -875,7 +863,7 @@ class CreateClientBundleManagementServiceHandler(_BaseCertHandler):
                 ca_content = cert_ca_file.read()
 
             # mimicking the ePO response for output string = json. Needs to be OK:"body"
-            json_string = "OK:\r\n{}\r\n".format(json.dumps(ca_content))
+            json_string = f"OK:\r\n{json.dumps(ca_content)}\r\n"
             self.write(json_string)
 
         except Exception as ex:
@@ -883,7 +871,7 @@ class CreateClientBundleManagementServiceHandler(_BaseCertHandler):
                 "Exception while processing createClientCaBundle request. %s",
                 ex)
             logger.error(traceback.format_exc())
-            error_string = "Failed to return createClientCaBundle:" + str(ex)
+            error_string = f"Failed to return createClientCaBundle:{str(ex)}"
             # json_string = "ERROR:\r\n{}\r\n".format(json.dumps(error_string))
             # Raising exception again so the python client will show the error
             raise tornado.web.HTTPError(500, reason=error_string,
@@ -965,7 +953,7 @@ class GetBrokerListManagementServiceHandler(_BaseCertHandler):
 
             # extract the WebSocket broker list from the config
             brokers_web_sockets = \
-                dxlconsole.util.create_broker_list_from_config(config_parser, "BrokersWebSockets")
+                    dxlconsole.util.create_broker_list_from_config(config_parser, "BrokersWebSockets")
 
             # build the json
             json_data = {"brokers": brokers,
@@ -974,7 +962,7 @@ class GetBrokerListManagementServiceHandler(_BaseCertHandler):
             # this the json of our response
             json_string_data = json.dumps(json_data)
             # ePO output=json creates json again
-            json_string = "OK:\r\n{}\r\n".format(json.dumps(json_string_data))
+            json_string = f"OK:\r\n{json.dumps(json_string_data)}\r\n"
 
             # write the response
             self.write(json_string)
@@ -982,7 +970,7 @@ class GetBrokerListManagementServiceHandler(_BaseCertHandler):
             logger.error(
                 "Exception while processing getBrokerList request. %s", ex)
             logger.error(traceback.format_exc())
-            error_string = "Failed to return getBrokerList:" + str(ex)
+            error_string = f"Failed to return getBrokerList:{str(ex)}"
             # json_string = "ERROR:\r\n{}\r\n".format(json.dumps(error_string))
             # Raising exception again so the python client will show the error
             raise tornado.web.HTTPError(500, reason=error_string,
